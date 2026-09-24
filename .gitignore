@@ -1,0 +1,14 @@
+node_modules/
+dist/
+build/
+.env
+*.log
+.DS_Store
+client/node_modules
+server/node_modules
+test-target/node_modules
+server/dist
+client/dist
+server/data.json
+.venv/
+logs/

@@ -1,0 +1,17 @@
+{
+  "name": "lynqo-vulnerability-suite",
+  "version": "4.0.0",
+  "description": "LynQo Vulnerability - Discovery, Security Audit, Analysis, Reporting & Remediation Suite with One-Command Runner",
+  "private": true,
+  "scripts": {
+    "install:all": "npm install && cd client && npm install && cd ../server && npm install && cd ../test-target && npm install",
+    "dev": "concurrently "npm run server" "npm run client" "npm run test-target"",
+    "server": "cd server && npm run dev",
+    "client": "cd client && npm run dev",
+    "test-target": "cd test-target && npm run dev",
+    "build": "cd client && npm run build && cd ../server && npm run build"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

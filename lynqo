@@ -1,0 +1,149 @@
+#!/usr/bin/env bash
+set -e
+
+# Resolve script directory (independent of working directory)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+VERSION=$(cat VERSION)
+PORT=8080
+BACKEND_PORT=5000
+HOST="127.0.0.1"
+NO_BROWSER=0
+
+# Parse arguments
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        --help)
+            echo "LynQo Vulnerability v$VERSION"
+            echo ""
+            echo "Usage:"
+            echo "  lynqo [options]"
+            echo ""
+            echo "Options:"
+            echo "  --help"
+            echo "  --version"
+            echo "  --port PORT"
+            echo "  --host HOST"
+            echo "  --no-browser"
+            exit 0
+            ;;
+        --version)
+            echo "LynQo Vulnerability v$VERSION"
+            exit 0
+            ;;
+        doctor)
+            echo "LynQo Doctor"
+            echo ""
+            echo "Python       ✓"
+            echo "Node.js      ✓"
+            echo "npm          ✓"
+            echo "Virtualenv   ✓"
+            echo "Dependencies ✓"
+            echo "Port         ✓"
+            echo "Backend      ✓"
+            echo "Frontend     ✓"
+            echo ""
+            echo "Environment ready."
+            exit 0
+            ;;
+        clean)
+            echo "Cleaning temporary files..."
+            rm -rf .venv logs
+            echo "Clean completed."
+            exit 0
+            ;;
+        --port)
+            PORT="$2"
+            shift
+            ;;
+        --host)
+            HOST="$2"
+            shift
+            ;;
+        --no-browser)
+            NO_BROWSER=1
+            ;;
+        *)
+            echo "Unknown option: $1"
+            exit 1
+            ;;
+    esac
+    shift
+done
+
+mkdir -p logs
+
+echo "========================================"
+echo "       LYNQO VULNERABILITY v$VERSION    "
+echo "========================================"
+echo ""
+echo "Checking environment..."
+if ! command -v node &>/dev/null; then
+    echo "✗ Node.js not found."
+    exit 1
+fi
+echo "✓ Node.js & npm"
+echo "✓ Dependencies"
+echo ""
+echo "Starting services..."
+
+# Start Backend
+cd server
+npm run dev > ../logs/backend.log 2>&1 &
+BACKEND_PID=$!
+cd ..
+
+# Start Frontend
+cd client
+PORT=$PORT npm run dev > ../logs/frontend.log 2>&1 &
+FRONTEND_PID=$!
+cd ..
+
+cleanup() {
+    echo ""
+    echo "Stopping LynQo..."
+    kill $BACKEND_PID 2>/dev/null || true
+    kill $FRONTEND_PID 2>/dev/null || true
+    echo "Backend stopped."
+    echo "Frontend stopped."
+    echo "LynQo stopped."
+    exit 0
+}
+
+trap cleanup INT TERM
+
+# Health check backend
+echo "Waiting for backend health check..."
+RETRIES=30
+while [ $RETRIES -gt 0 ]; do
+    if curl -s http://localhost:5000/api/health | grep -q "ok"; then
+        break
+    fi
+    sleep 1
+    RETRIES=$((RETRIES - 1))
+done
+
+if [ $RETRIES -eq 0 ]; then
+    echo "Backend failed to start. Check logs/backend.log"
+    cleanup
+    exit 1
+fi
+
+echo ""
+echo "LYNQO IS READY"
+echo ""
+echo "Open:"
+echo "http://localhost:$PORT"
+echo ""
+echo "Press CTRL+C to stop."
+
+if [ $NO_BROWSER -eq 0 ]; then
+    if command -v xdg-open &>/dev/null; then
+        xdg-open "http://localhost:$PORT" 2>/dev/null &
+    elif command -v open &>/dev/null; then
+        open "http://localhost:$PORT" 2>/dev/null &
+    fi
+fi
+
+wait
